@@ -1,0 +1,16 @@
+﻿@model WebApplication1.Models.ComplaintModel
+
+<div class="container mt-5 text-center">
+    <div class="card shadow-lg border-0 rounded-4 p-4">
+        <h4 class="mb-4 text-primary fw-bold">ثبت شکایت با موفقیت انجام شد</h4>
+        <p>کد رهگیری شکایت شما:</p>
+        <h3 class="text-success fw-bold">@Model.TrackingCode</h3>
+        <hr />
+        <p><strong>عنوان:</strong> @Model.TitleOfComplaint</p>
+        <p style="white-space:pre-wrap"><strong>متن شکایت:</strong> @Model.Description</p>
+        <p><strong>تاریخ ثبت:</strong> @Model.DateOfCreateComplaint.ToString("yyyy/MM/dd HH:mm")</p>
+
+        <a asp-controller="Complaints" asp-action="StatusCheck" class="btn btn-outline-primary mt-3">بازگشت به پیگیری وضعیت شکایت</a>
+    </div>
+</div>
+

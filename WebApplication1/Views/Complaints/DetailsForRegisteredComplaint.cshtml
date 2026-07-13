@@ -1,0 +1,160 @@
+﻿@model WebApplication1.Models.ComplaintModel
+@using WebApplication1.Models
+@using WebApplication1.Helpers;
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+
+@{
+    ViewData["Title"] = "جزئیات شکایت ثبت ‌شده";
+    var token = Antiforgery.GetAndStoreTokens(Context).RequestToken;
+}
+
+<div class="container mt-5">
+    <div class="card shadow-lg border-0 rounded-4">
+        <div class="card-header bg-primary text-white rounded-top-4">
+            <h4 class="mb-0"><i class="bi bi-info-circle"></i> جزئیات شکایت</h4>
+        </div>
+        <div class="card-body p-4 bg-light">
+
+            <div class="mb-3">
+                <label class="fw-semibold">کد رهگیری شکایت:</label>
+                <span class="badge bg-secondary">@Model.TrackingCode</span>
+            </div>
+
+            <div class="mb-3">
+                <label class="fw-semibold">کد بسته:</label>
+                <span>@Model.PackageCode</span>
+            </div>
+
+            <div class="mb-3">
+                <label class="fw-semibold">عنوان شکایت:</label>
+                <span>@Model.TitleOfComplaint</span>
+            </div>
+
+            <div class="mb-3">
+                <label class="fw-semibold">توضیحات:</label>
+                <p class="border rounded-3 p-3 bg-white" style="white-space:pre-wrap;">@Model.Description</p>
+            </div>
+
+            <div class="mb-3">
+                <label class="fw-semibold">تاریخ ثبت شکایت:</label>
+                <span>@Model.DateOfCreateComplaint.ToString("yyyy/MM/dd HH:mm")</span>
+            </div>
+
+            <div class="mb-3">
+                <label class="fw-semibold">وضعیت فعلی:</label>
+                <span class="badge bg-info text-dark">@Model.Status.GetDisplayName()</span>
+            </div>
+
+            <hr />
+
+            <h5 class="fw-semibold mt-4 mb-3">پیام‌ها و پاسخ‌ها</h5>
+
+            <div id="messagesContainer">
+                @if (Model.Messages != null && Model.Messages.Any())
+                {
+                    foreach (var message in Model.Messages.OrderBy(m => m.SentAtDate))
+                    {
+                        <div class="alert @(message.isFromAdmin ? "alert-warning" : "alert-secondary") rounded-3 shadow-sm">
+                            <div class="d-flex justify-content-between">
+                                <strong>@(message.isFromAdmin ? "پشتیبانی" : "شما")</strong>
+                                <small>@message.SentAtDate.ToString("yyyy/MM/dd HH:mm")</small>
+                            </div>
+                            <div class="mt-2">@message.Message</div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p class="text-muted">تا این لحظه پیامی ثبت نشده است.</p>
+                }
+            </div>
+
+            <hr />
+
+           
+            <form id="sendMessageForm">
+                <input type="hidden" id="complaintId" value="@Model.ComplaintId" />
+                <textarea id="MessageContent" class="form-control" rows="3" placeholder="پیام خود را بنویسید..."></textarea>
+                <button type="submit" class="btn btn-primary mt-2">
+                    <i class="bi bi-send"></i> ارسال پیام
+                </button>
+                <div class="mt-4 text-end">
+                    <a href="@Url.Action("StatusCheck", "Complaints")" class="btn btn-outline-secondary rounded-pill">
+                        <i class="bi bi-arrow-left"></i> بازگشت به لیست شکایات
+                    </a>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@7.0.5/dist/browser/signalr.min.js"></script>
+
+    <script>
+       
+        const complaintId = document.getElementById("complaintId").value;
+
+        
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl(`/complaintChatHub?complaintId=${complaintId}`)
+            .build();
+
+       
+        connection.on("ReceiveMessage", (sender, message, time) => {
+            const container = document.getElementById("messagesContainer");
+
+            
+            const emptyText = container.querySelector("p.text-muted");
+            if (emptyText) emptyText.remove();
+
+            const html = `
+                <div class="alert ${sender === 'پشتیبانی' ? 'alert-warning' : 'alert-secondary'} rounded-3 shadow-sm">
+                    <div class="d-flex justify-content-between">
+                        <strong>${sender}</strong>
+                        <small>${time}</small>
+                    </div>
+                    <div class="mt-2">${message}</div>
+                </div>
+            `;
+
+            container.insertAdjacentHTML("beforeend", html);
+            container.scrollTop = container.scrollHeight;
+        });
+
+       
+        connection.start().catch(err => console.error(err));
+
+        
+        document.getElementById("sendMessageForm").addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            const message = document.getElementById("MessageContent").value.trim();
+            if (!message) return;
+
+            
+            const res =await fetch ('@Url.Action("SaveMessage", "Dashboard")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': '@token'
+                },
+                body: JSON.stringify({
+                    complaintId: complaintId,
+                    content: message,
+                    isFromAdmin: false
+                })
+            });
+
+            if (res.ok) {
+                
+                await connection.invoke("SendMessage", complaintId, "شما", message);
+                document.getElementById("MessageContent").value = '';
+            } else {
+                alert("ارسال پیام برای این شکایت دیگر امکان پذیر نیست.");
+            }
+        });
+    </script>
+}
