@@ -30,7 +30,7 @@ The repository follows the standard ASP.NET Core architectural pattern with an i
  ┣ 📁 Views/                    # User-facing MVC Razor Views
  ┗ 📁 wwwroot/                  # Static assets (CSS, custom vanilla JavaScript, and libraries)
 
----
+```
 
 
 ##Prerequisites
